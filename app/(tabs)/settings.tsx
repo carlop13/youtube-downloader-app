@@ -10,7 +10,7 @@ export default function SettingsScreen() {
 
   const handleQualityChange = (quality: string) => {
     setDefaultQuality(quality);
-    // Aquí podrías guardar en AsyncStorage si quisieras persistir la configuración
+    // para guardar en AsyncStorage si se sigue con la configuración
   };
 
   const openLink = (url: string) => {
@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const showAbout = () => {
     Alert.alert(
       'Acerca de YouTube Downloader',
-      'Esta aplicación te permite descargar videos de YouTube en diferentes calidades. Desarrollada con React Native y Expo.\n\nVersión: 1.0.0',
+      'Esta aplicación te permite descargar videos de YouTube en diferentes calidades. \n\nDesarrollada por Carlos Guadalupe López Trejo.\n\nVersión: 1.0.0',
       [{ text: 'OK' }]
     );
   };
@@ -97,7 +97,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity 
             style={styles.settingCard} 
-            onPress={() => openLink('https://github.com')}
+            onPress={() => openLink('https://github.com/carlop13/youtube-downloader-app.git')}
           >
             <View style={styles.settingIcon}>
               <Globe size={24} color="#FF9500" />
@@ -132,9 +132,9 @@ export default function SettingsScreen() {
               <Heart size={24} color="#FF2D92" />
             </View>
             <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Hecho con ❤️</Text>
+              <Text style={styles.settingTitle}>Hecho para 🦖🐊</Text>
               <Text style={styles.settingDescription}>
-                Desarrollado con React Native y Expo
+                Desarrollado por Carlos Guadalupe López Trejo
               </Text>
             </View>
           </View>
@@ -145,7 +145,7 @@ export default function SettingsScreen() {
             YouTube Downloader v1.0.0
           </Text>
           <Text style={styles.footerSubtext}>
-            Powered by Expo & React Native
+            App creada con Expo & React Native
           </Text>
         </View>
       </ScrollView>
