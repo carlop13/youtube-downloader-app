@@ -138,7 +138,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Youtube size={32} color="#FF0000" />
-          <Text style={styles.headerTitle}>YouTube Downloader</Text>
+          <Text style={styles.headerTitle}>Snapcodrilo</Text>
         </View>
         <Text style={styles.headerSubtitle}>
           Descarga tus videos favoritos en alta calidad

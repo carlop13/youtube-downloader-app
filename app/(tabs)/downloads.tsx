@@ -3,9 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { File, FolderOpen, RefreshCw, Share, Trash2 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { DownloadService, DownloadedFile } from 'services/DownloadService'; // Importamos el tipo desde el servicio
-
-// La definición de la interface ya no es necesaria aquí, porque la importamos desde DownloadService.
+import { DownloadService, DownloadedFile } from 'services/DownloadService';
 
 export default function DownloadsScreen() {
   const [downloadedFiles, setDownloadedFiles] = useState<DownloadedFile[]>([]);
@@ -15,7 +13,6 @@ export default function DownloadsScreen() {
   const loadFiles = useCallback(async () => {
     try {
       const files = await DownloadService.getDownloadedFiles();
-      // Ya no se necesita la conversión 'as DownloadedFile[]' porque los tipos coinciden.
       setDownloadedFiles(files);
     } catch (error) {
       console.error('Error al cargar archivos:', error);
@@ -55,7 +52,7 @@ export default function DownloadsScreen() {
             try {
               if (Platform.OS !== 'web') {
                 await FileSystem.deleteAsync(file.uri);
-                await loadFiles(); // Recarga la lista de archivos después de eliminar
+                await loadFiles();
               }
             } catch (error) {
               Alert.alert('Error', 'No se pudo eliminar el archivo');
