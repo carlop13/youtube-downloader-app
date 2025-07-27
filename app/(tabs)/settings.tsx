@@ -1,10 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { ExternalLink, Globe, Heart, Info, Settings as SettingsIcon, Shield, Smartphone } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
   const [defaultQuality, setDefaultQuality] = useState('720p');
+  const insets = useSafeAreaInsets();
 
   const qualities = ['144p', '240p', '360p', '480p', '720p', '1080p'];
 
@@ -29,7 +31,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : 10 }]}>
         <View style={styles.headerContent}>
           <SettingsIcon size={32} color="#007AFF" />
           <Text style={styles.headerTitle}>Configuración</Text>
@@ -145,7 +147,7 @@ export default function SettingsScreen() {
             YouTube Downloader v1.0.0
           </Text>
           <Text style={styles.footerSubtext}>
-            App creada con Expo & React Native
+            App creada con React Native
           </Text>
         </View>
       </ScrollView>
@@ -162,8 +164,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
     backgroundColor: 'white',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

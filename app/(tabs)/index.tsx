@@ -1,141 +1,118 @@
-import QualitySelector from 'components/QualitySelector';
-import SearchInput from 'components/SearchInput';
-import VideoCard from 'components/VideoCard';
 import { StatusBar } from 'expo-status-bar';
 import { Youtube } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { DownloadProgress, DownloadService } from 'services/DownloadService';
-import { getAvailableQualities, getDownloadableLink, VideoInfo } from 'services/YoutubeApiService';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Tus componentes y servicios (las rutas relativas son más seguras si los alias fallan)
+import QualitySelector from '@/../components/QualitySelector';
+import SearchInput from '@/../components/SearchInput';
+import VideoCard from '@/../components/VideoCard';
+import { DownloadProgress, DownloadResumable, DownloadService } from '@/../services/DownloadService';
+import { getVideoDetails, VideoDetails, VideoQuality } from '@/../services/YoutubeApiService';
 
 export default function HomeScreen() {
   const [url, setUrl] = useState('');
-  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
-  const [availableQualities, setAvailableQualities] = useState<string[]>([]);
-  const [selectedQuality, setSelectedQuality] = useState('720p');
+  const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
+  // Guardamos el objeto de calidad completo, no solo el string.
+  const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
+  
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const downloadResumableRef = useRef<DownloadResumable | null>(null);
+  const insets = useSafeAreaInsets(); // Hook para obtener los márgenes seguros
 
   const handleSearch = async () => {
     if (!url.trim()) return;
 
     setIsSearching(true);
-    setVideoInfo(null);
-    setAvailableQualities([]);
+    setVideoDetails(null);
+    setSelectedQuality(null);
     setDownloadProgress(0);
 
     try {
-      // Obtener calidades disponibles
-      const qualities = await getAvailableQualities(url);
-      setAvailableQualities(qualities);
+      // Hacemos una sola petición que nos trae toda la información del video
+      const result = await getVideoDetails(url);
       
-      // Si hay calidades disponibles, usar la primera como predeterminada
-      const qualityToUse = qualities.length > 0 ? qualities[0] : selectedQuality;
-      setSelectedQuality(qualityToUse);
-
-      // Obtener información del video
-      const result = await getDownloadableLink(url, qualityToUse);
-      
-      if (result) {
-        setVideoInfo(result);
+      // CORRECCIÓN LÓGICA: Ahora guardamos los detalles en el estado para que se renderice.
+      if (result && result.qualities.length > 0) {
+        setVideoDetails(result);
+        // Seleccionamos la mejor calidad disponible (la primera de la lista) por defecto.
+        setSelectedQuality(result.qualities[0]);
       } else {
-        Alert.alert(
-          'Error',
-          'No se pudo obtener la información del video. Verifica que la URL sea válida y que el video esté disponible.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Error', 'No se pudo obtener la información del video. Verifica la URL o que el video no tenga restricciones.');
       }
     } catch (error) {
-      console.error('Error al buscar video:', error);
-      Alert.alert(
-        'Error de Conexión',
-        'No se pudo conectar con el servicio. Verifica tu conexión a internet e intenta nuevamente.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error de Conexión', 'No se pudo conectar con el servicio. Intenta nuevamente.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleQualityChange = async (quality: string) => {
-    setSelectedQuality(quality);
-    
-    if (videoInfo && url) {
-      setIsSearching(true);
-      try {
-        const result = await getDownloadableLink(url, quality);
-        if (result) {
-          setVideoInfo(result);
-        }
-      } catch (error) {
-        console.error('Error al cambiar calidad:', error);
-      } finally {
-        setIsSearching(false);
-      }
-    }
-  };
-
   const handleDownload = async () => {
-    if (!videoInfo) return;
+    if (!videoDetails || !selectedQuality) return;
 
     setIsDownloading(true);
     setDownloadProgress(0);
 
+    const filename = `${videoDetails.title.replace(/[^a-z0-9_.-]/gi, '-')}-${selectedQuality.quality}.mp4`;
+
     try {
-      const fileUri = await DownloadService.downloadFile(
-        videoInfo.downloadUrl,
-        videoInfo.filename,
+      const { downloadResumable, fileUri } = await DownloadService.startDownload(
+        selectedQuality.url,
+        filename,
         (progress: DownloadProgress) => {
           setDownloadProgress(progress.progress * 100);
         }
       );
 
+      downloadResumableRef.current = downloadResumable;
+
       if (fileUri) {
-        Alert.alert(
-          '¡Descarga Completada!',
-          `El video "${videoInfo.title}" se ha descargado exitosamente.`,
-          [
-            {
-              text: 'Compartir',
-              onPress: () => DownloadService.shareFile(fileUri),
-            },
-            { text: 'OK' },
-          ]
-        );
-        setDownloadProgress(100);
+        await DownloadService.saveToGallery(fileUri, filename);
+        // No mostramos alerta aquí, la notificación en segundo plano se encargará.
+      } else if (downloadResumableRef.current?.__SAFEv2_shouldCancel) {
+        // Si fue cancelado, no mostramos error.
+        console.log("Descarga cancelada por el usuario.");
       } else {
-        Alert.alert(
-          'Error en la Descarga',
-          'No se pudo completar la descarga. Intenta nuevamente.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Error', 'La descarga falló.');
       }
-    } catch (error) {
-      console.error('Error en la descarga:', error);
-      Alert.alert(
-        'Error en la Descarga',
-        'Ocurrió un error durante la descarga. Verifica tu conexión e intenta nuevamente.',
-        [{ text: 'OK' }]
-      );
+
+    } catch (error: any) {
+      if (!error.message.includes('cancel')) {
+        Alert.alert('Error', 'Ocurrió un error durante la descarga.');
+      }
     } finally {
       setIsDownloading(false);
+      setDownloadProgress(100); // Marcamos 100% al finalizar o cancelar.
+      downloadResumableRef.current = null;
+    }
+  };
+  
+  const handleCancelDownload = async () => {
+    if (downloadResumableRef.current) {
+      console.log("Cancelando descarga...");
+      await downloadResumableRef.current.cancelAsync();
+      // El bloque finally de handleDownload se encargará del resto.
     }
   };
 
   const resetSearch = () => {
+    if (isDownloading) return;
     setUrl('');
-    setVideoInfo(null);
-    setAvailableQualities([]);
+    setVideoDetails(null);
+    setSelectedQuality(null);
     setDownloadProgress(0);
-    setSelectedQuality('720p');
   };
 
   return (
+    // SafeAreaView gestiona automáticamente los márgenes superior e inferior
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : 10 }]}>
         <View style={styles.headerContent}>
           <Youtube size={32} color="#FF0000" />
           <Text style={styles.headerTitle}>Snapcodrilo</Text>
@@ -150,9 +127,14 @@ export default function HomeScreen() {
         onChangeText={setUrl}
         onSearch={handleSearch}
         isLoading={isSearching}
+        disabled={isDownloading}
       />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }} // Margen inferior dinámico
+        showsVerticalScrollIndicator={false}
+      >
         {isSearching && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
@@ -160,29 +142,35 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {availableQualities.length > 0 && (
-          <QualitySelector
-            qualities={availableQualities}
-            selectedQuality={selectedQuality}
-            onQualitySelect={handleQualityChange}
-          />
-        )}
-
-        {videoInfo && (
-          <VideoCard
-            video={videoInfo}
-            onDownload={handleDownload}
-            isDownloading={isDownloading}
-            downloadProgress={downloadProgress}
-          />
-        )}
-
-        {videoInfo && (
-          <View style={styles.resetContainer}>
-            <Text style={styles.resetText} onPress={resetSearch}>
-              ¿Buscar otro video?
-            </Text>
-          </View>
+        {videoDetails && (
+          <>
+            <QualitySelector
+              qualities={videoDetails.qualities.map(q => q.quality)}
+              selectedQuality={selectedQuality?.quality || ''}
+              onQualitySelect={(quality) => {
+                const newQuality = videoDetails.qualities.find(q => q.quality === quality);
+                if (newQuality) setSelectedQuality(newQuality);
+              }}
+            />
+            <VideoCard
+  video={{
+    title: videoDetails.title,
+    thumbnail: videoDetails.thumbnail,
+  }}
+  selectedQuality={selectedQuality?.quality || null} // Pasamos solo el string de calidad
+  onDownload={handleDownload}
+  onCancel={handleCancelDownload}
+  isDownloading={isDownloading}
+  downloadProgress={downloadProgress}
+/>
+            <View style={styles.resetContainer}>
+              <TouchableOpacity onPress={resetSearch} disabled={isDownloading}>
+                <Text style={[styles.resetText, isDownloading && styles.disabledText]}>
+                  ¿Buscar otro video?
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -195,16 +183,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    padding: 20,
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 10, 
     backgroundColor: 'white',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
@@ -248,5 +233,9 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  disabledText: {
+    color: '#BDBDBD',
+    textDecorationLine: 'none',
   },
 });

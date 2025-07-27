@@ -1,7 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Download, FolderOpen, Settings } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  // 1. Obtenemos los márgenes seguros del dispositivo
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -11,8 +15,11 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: 'white',
           borderTopWidth: 0,
-          height: 88,
-          paddingBottom: 20,
+          // 2. Calculamos la altura dinámicamente
+          // Altura base de 60 + el margen inferior del sistema (ej. la barra de gestos de iPhone)
+          height: 60 + insets.bottom, 
+          // 3. El padding inferior ahora es solo el margen del sistema
+          paddingBottom: insets.bottom,
           paddingTop: 8,
           shadowColor: '#000',
           shadowOffset: {
