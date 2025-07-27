@@ -1,136 +1,128 @@
-import { Clock, Download, Eye, Play } from 'lucide-react-native';
+import { CheckCircle, Download, XCircle } from 'lucide-react-native';
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { VideoInfo } from 'services/YoutubeApiService';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+// Definimos los tipos de las props que el componente recibirá
 interface VideoCardProps {
-  video: VideoInfo;
+  // Usamos un tipo parcial para la info del video que necesita la tarjeta
+  video: {
+    title: string;
+    thumbnail: string;
+  };
+  selectedQuality: string | null; // La calidad seleccionada
   onDownload: () => void;
-  isDownloading?: boolean;
-  downloadProgress?: number;
+  onCancel: () => void;
+  isDownloading: boolean;
+  downloadProgress: number;
 }
 
-const { width } = Dimensions.get('window');
+const VideoCard: React.FC<VideoCardProps> = ({ 
+  video, 
+  selectedQuality,
+  onDownload, 
+  onCancel, 
+  isDownloading, 
+  downloadProgress 
+}) => {
 
-export default function VideoCard({ video, onDownload, isDownloading, downloadProgress }: VideoCardProps) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.thumbnailContainer}>
-        <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} />
-        <View style={styles.playOverlay}>
-          <Play size={24} color="white" fill="white" />
+  // Esta función renderiza la parte inferior de la tarjeta (el botón o el progreso)
+  const renderActionSection = () => {
+    // ESTADO 3: Descarga completada (mostramos un estado de éxito)
+    if (downloadProgress === 100 && !isDownloading) {
+      return (
+        <View style={[styles.button, styles.completedButton]}>
+          <CheckCircle size={22} color="#FFFFFF" />
+          <Text style={styles.buttonText}>¡Descargado!</Text>
         </View>
-        {video.duration && (
-          <View style={styles.durationBadge}>
-            <Clock size={12} color="white" />
-            <Text style={styles.durationText}>{video.duration}</Text>
+      );
+    }
+    
+    // ESTADO 2: Descarga en progreso
+    if (isDownloading) {
+      return (
+        <View style={styles.downloadingContainer}>
+          {/* El indicador de progreso que no es un botón */}
+          <View style={styles.progressWrapper}>
+            <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
+            <Text style={styles.progressText}>
+              Descargando... {downloadProgress.toFixed(0)}%
+            </Text>
           </View>
-        )}
-      </View>
+          {/* El botón de cancelar al lado */}
+          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+            <XCircle size={22} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // ESTADO 1: Normal, listo para descargar
+    return (
+      <TouchableOpacity style={styles.button} onPress={onDownload}>
+        <Download size={20} color="#FFFFFF" />
+        <Text style={styles.buttonText}>Descargar</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.card}>
+      {/* Miniatura del video */}
+      <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} />
       
-      <View style={styles.content}>
+      <View style={styles.infoContainer}>
+        {/* Título del video */}
         <Text style={styles.title} numberOfLines={2}>
           {video.title}
         </Text>
         
+        {/* Sección de metadatos (Calidad) */}
         <View style={styles.metadata}>
-          <View style={styles.qualityBadge}>
-            <Text style={styles.qualityText}>{video.quality}</Text>
-          </View>
-          
-          {video.viewCount && (
-            <View style={styles.viewCount}>
-              <Eye size={14} color="#666" />
-              <Text style={styles.viewCountText}>{video.viewCount} views</Text>
+          {selectedQuality && (
+            <View style={styles.qualityBadge}>
+              <Text style={styles.qualityText}>{selectedQuality}</Text>
             </View>
           )}
+          {/* Puedes añadir más metadatos aquí si la API los devuelve, como las vistas */}
+          {/* <View style={styles.viewCount}>
+            <Eye size={14} color="#666" />
+            <Text style={styles.viewCountText}>1.2M vistas</Text>
+          </View> */}
         </View>
 
-        <TouchableOpacity
-          style={[styles.downloadButton, isDownloading && styles.downloadingButton]}
-          onPress={onDownload}
-          disabled={isDownloading}
-        >
-          <Download size={20} color="white" />
-          <Text style={styles.downloadButtonText}>
-            {isDownloading ? `${downloadProgress?.toFixed(0) || 0}%` : 'Descargar'}
-          </Text>
-        </TouchableOpacity>
-
-        {isDownloading && downloadProgress !== undefined && (
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
-          </View>
-        )}
+        {/* Sección de acción (Botón o Progreso) */}
+        {renderActionSection()}
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginVertical: 12,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginTop: 20,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
     overflow: 'hidden',
-  },
-  thumbnailContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 200,
   },
   thumbnail: {
     width: '100%',
-    height: '100%',
-    backgroundColor: '#f0f0f0',
+    height: 180,
+    backgroundColor: '#e0e0e0',
   },
-  playOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -12 }, { translateY: -12 }],
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  durationText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
+  infoContainer: {
     padding: 16,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 12,
-    lineHeight: 22,
   },
   metadata: {
     flexDirection: 'row',
@@ -139,15 +131,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   qualityBadge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#F0F0F0',
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   qualityText: {
-    color: 'white',
+    color: '#333',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   viewCount: {
     flexDirection: 'row',
@@ -158,34 +150,56 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
   },
-  downloadButton: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  // --- Estilos para la sección de acción ---
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    backgroundColor: '#007AFF', // Botón azul
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 10,
   },
-  downloadingButton: {
-    backgroundColor: '#34C759',
-  },
-  downloadButtonText: {
+  buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  progressContainer: {
-    height: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 2,
-    marginTop: 12,
-    overflow: 'hidden',
+  completedButton: {
+    backgroundColor: '#34C759', // Verde para completado
+  },
+  downloadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressWrapper: {
+    flex: 1, // Ocupa todo el espacio disponible
+    height: 50,
+    backgroundColor: '#E0F0FF', // Un azul claro de fondo
+    borderRadius: 12,
+    justifyContent: 'center',
+    overflow: 'hidden', // Para que la barra de progreso no se salga
   },
   progressBar: {
+    backgroundColor: '#007AFF', // Azul para el progreso
     height: '100%',
-    backgroundColor: '#34C759',
-    borderRadius: 2,
+    position: 'absolute',
+  },
+  progressText: {
+    alignSelf: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0059B3', // Un azul más oscuro para el texto
+  },
+  cancelButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#FFE5E5', // Un rojo claro
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
+
+export default VideoCard;

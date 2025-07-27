@@ -1,20 +1,22 @@
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 // =================================================================
 // --- TIPOS (INTERFACES) ---
-// Definimos los tipos aquí para que puedan ser importados y usados en toda la app.
 // =================================================================
 
 /**
- * Describe la estructura de un archivo que ya ha sido descargado.
- * Esto es lo que nuestra pantalla `downloads.tsx` espera recibir.
+ * Describe la estructura de un archivo que ya ha sido descargado y está en la galería.
  */
 export interface DownloadedFile {
-  name: string;
+  id: string; // ID del asset en la MediaLibrary
+  filename: string;
   uri: string;
   size?: number;
+  duration?: number;
   modificationTime?: number;
   exists: boolean;
 }
@@ -27,128 +29,198 @@ export interface DownloadProgress {
   totalBytesExpectedToWrite: number;
   progress: number;
 }
+export type DownloadResumable = FileSystem.DownloadResumable;
 
+// =================================================================
+// --- CONFIGURACIÓN DE NOTIFICACIONES ---
+// =================================================================
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    if (newStatus !== 'granted') {
+      alert('Necesitamos permisos para mostrar notificaciones de descarga.');
+      return false;
+    }
+  }
+  return true;
+}
+registerForPushNotificationsAsync();
 
 // =================================================================
 // --- LÓGICA DEL SERVICIO ---
 // =================================================================
 
-// Directorio donde se guardarán todas las descargas.
-const downloadDir = FileSystem.documentDirectory + 'downloads/';
+// Usaremos el directorio de documentos para descargas temporales, es más estable.
+const tempDownloadDir = FileSystem.documentDirectory + 'downloads/';
 
 /**
  * Asegura que el directorio de descargas exista antes de usarlo.
  */
 async function ensureDirExists() {
-  const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+  const dirInfo = await FileSystem.getInfoAsync(tempDownloadDir);
   if (!dirInfo.exists) {
-    console.log("Creando directorio de descargas:", downloadDir);
-    await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+    await FileSystem.makeDirectoryAsync(tempDownloadDir, { intermediates: true });
   }
 }
 
 /**
- * Descarga un archivo desde una URL y guarda el progreso.
- * @param url La URL del archivo a descargar.
- * @param filename El nombre con el que se guardará el archivo.
- * @param onProgress Callback que se ejecuta con el progreso de la descarga.
- * @returns La URI local del archivo o null si falla.
+ * Pide permisos para acceder a la galería/mediateca.
  */
-async function downloadFile(
+async function getMediaLibraryPermissions() {
+  const { status } = await MediaLibrary.requestPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Lo sentimos, necesitamos permisos para guardar el video en tus archivos.');
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Inicia una descarga y devuelve el objeto para poder cancelarla.
+ */
+async function startDownload(
   url: string, 
   filename: string, 
   onProgress: (progress: DownloadProgress) => void
-): Promise<string | null> {
-
-  // La descarga en web es diferente, la manejamos por separado (no aplica en móvil).
-  if (Platform.OS === 'web') {
-    alert("La descarga en web se maneja directamente en el navegador.");
-    return null;
-  }
-
+): Promise<DownloadResumable> {
   await ensureDirExists();
-  const fileUri = downloadDir + filename;
+  const fileUri = tempDownloadDir + filename;
 
-  // Creamos el objeto de descarga con su callback para el progreso
-  const downloadResumable = FileSystem.createDownloadResumable(
-    url,
-    fileUri,
-    {},
-    (downloadProgress) => {
-      const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-      onProgress({ ...downloadProgress, progress });
-    }
-  );
+  // Notificación de inicio (opcional, para feedback inmediato)
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'download-progress',
+    content: {
+      title: 'Iniciando descarga...',
+      body: filename,
+    },
+    trigger: null,
+  });
+
+  const callback = (p: FileSystem.DownloadProgressData) => {
+    const progress = p.totalBytesWritten / p.totalBytesExpectedToWrite;
+    onProgress({ ...p, progress });
+    // Actualiza la notificación en segundo plano
+    Notifications.scheduleNotificationAsync({
+        identifier: 'download-progress',
+        content: {
+            title: 'Descargando...',
+            body: `${filename}`,
+            subtitle: `${(progress * 100).toFixed(0)}% completado`,
+        },
+        trigger: null,
+    });
+  };
+  
+  return FileSystem.createDownloadResumable(url, fileUri, {}, callback);
+};
+
+/**
+ * Guarda el archivo descargado en la galería pública, en un álbum específico.
+ */
+async function saveToGallery(fileUri: string, filename: string): Promise<void> {
+  const hasPermissions = await getMediaLibraryPermissions();
+  if (!hasPermissions) {
+    throw new Error('Permisos de la galería denegados.');
+  }
 
   try {
-    const result = await downloadResumable.downloadAsync();
-    if (result) {
-      console.log('Descarga finalizada, guardada en:', result.uri);
-      return result.uri;
+    console.log(`Intentando crear asset desde la URI temporal: ${fileUri}`);
+    const asset = await MediaLibrary.createAssetAsync(fileUri);
+
+    console.log(`Asset creado con ID: ${asset.id}. Moviendo al álbum 'Snapcodrilo'...`);
+    const album = await MediaLibrary.getAlbumAsync('Snapcodrilo');
+    if (album == null) {
+      await MediaLibrary.createAlbumAsync('Snapcodrilo', asset, false);
+    } else {
+      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
     }
-    return null;
-  } catch (e) {
-    console.error('Error en la descarga del archivo:', e);
-    return null;
+    
+    console.log('Video guardado exitosamente en la galería!');
+    
+    // Limpiamos el archivo temporal después de una copia exitosa
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    
+    // Notificación de éxito
+    await Notifications.cancelScheduledNotificationAsync('download-progress'); // Cancela la de progreso
+    await Notifications.scheduleNotificationAsync({
+        content: {
+            title: '¡Descarga Completada!',
+            body: `"${filename}" se ha guardado en tu galería.`,
+        },
+        trigger: { seconds: 1 },
+    });
+  } catch (e: any) {
+    console.error('Error detallado al guardar en la galería:', e);
+    // Este throw enviará el error de vuelta a la pantalla para que pueda ser mostrado en una alerta.
+    throw new Error(`No se pudo guardar el video en la galería. Causa: ${e.message}`);
   }
-};
+}
 
 /**
  * Abre el diálogo nativo para compartir un archivo.
- * @param fileUri La URI local del archivo a compartir.
  */
 async function shareFile(fileUri: string): Promise<void> {
-  if (!(await Sharing.isAvailableAsync())) {
-    alert('La funcionalidad de compartir no está disponible en este dispositivo.');
-    return;
-  }
-  await Sharing.shareAsync(fileUri);
+    if (!(await Sharing.isAvailableAsync())) {
+      alert('La funcionalidad de compartir no está disponible en este dispositivo.');
+      return;
+    }
+    await Sharing.shareAsync(fileUri);
 };
-
 
 /**
- * Obtiene y devuelve una lista de todos los archivos descargados.
- * @returns Un array de objetos DownloadedFile.
+ * Obtiene la lista de archivos del álbum de la app en la galería.
  */
 async function getDownloadedFiles(): Promise<DownloadedFile[]> {
-  await ensureDirExists();
-  const fileNames = await FileSystem.readDirectoryAsync(downloadDir);
-  
-  const fileDetails = await Promise.all(
-    fileNames.map(async (fileName): Promise<DownloadedFile> => {
-      const fileUri = downloadDir + fileName;
-      // Usamos un try-catch por si un archivo se borra mientras leemos sus datos
-      try {
-        const info = await FileSystem.getInfoAsync(fileUri) as FileSystem.FileInfo & { size?: number, modificationTime?: number };
-        
-        return {
-          name: fileName,
-          uri: fileUri,
-          size: info.exists ? info.size : undefined,
-          modificationTime: info.exists ? info.modificationTime : undefined,
-          exists: info.exists,
-        };
-      } catch (error) {
-        // Si hay un error al leer un archivo, lo marcamos como no existente.
-        return {
-          name: fileName,
-          uri: fileUri,
-          exists: false,
-        };
-      }
-    })
-  );
-  
-  // Filtramos por si acaso y ordenamos por el más reciente.
-  return fileDetails
-    .filter(file => file.exists)
-    .sort((a, b) => (b.modificationTime || 0) - (a.modificationTime || 0));
-};
+    const hasPermissions = await getMediaLibraryPermissions();
+    if (!hasPermissions) return [];
+
+    const album = await MediaLibrary.getAlbumAsync('Snapcodrilo');
+    if (!album) {
+      console.log("El álbum 'Snapcodrilo' no existe, no hay archivos para mostrar.");
+      return [];
+    }
+
+    const assets = await MediaLibrary.getAssetsAsync({
+        album: album,
+        sortBy: [MediaLibrary.SortBy.creationTime],
+        mediaType: [MediaLibrary.MediaType.video],
+        first: 100, // Obtiene los últimos 100 videos del álbum
+    });
+
+    return assets.assets.map(asset => ({
+        id: asset.id,
+        filename: asset.filename,
+        uri: asset.uri,
+        size: asset.width * asset.height, // Esto es una estimación, MediaLibrary no provee el tamaño en bytes
+        modificationTime: asset.modificationTime,
+        exists: true,
+        duration: asset.duration,
+    }));
+}
 
 // Exportamos un objeto único 'DownloadService' que contiene todas nuestras funciones.
-// Esto hace que sea fácil de importar y usar en otras partes de la app.
 export const DownloadService = {
-  downloadFile,
+  startDownload,
+  saveToGallery,
   shareFile,
   getDownloadedFiles,
 };

@@ -3,12 +3,14 @@ import { StatusBar } from 'expo-status-bar';
 import { File, FolderOpen, RefreshCw, Share, Trash2 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DownloadService, DownloadedFile } from 'services/DownloadService';
 
 export default function DownloadsScreen() {
   const [downloadedFiles, setDownloadedFiles] = useState<DownloadedFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const loadFiles = useCallback(async () => {
     try {
@@ -111,7 +113,7 @@ export default function DownloadsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : 10 }]}>
         <View style={styles.headerContent}>
           <FolderOpen size={32} color="#007AFF" />
           <Text style={styles.headerTitle}>Mis Descargas</Text>
@@ -188,8 +190,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
     backgroundColor: 'white',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

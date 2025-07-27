@@ -1,6 +1,6 @@
+import { ArrowDownToLine } from 'lucide-react-native';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface QualitySelectorProps {
   qualities: string[];
@@ -8,84 +8,86 @@ interface QualitySelectorProps {
   onQualitySelect: (quality: string) => void;
 }
 
-export default function QualitySelector({ qualities, selectedQuality, onQualitySelect }: QualitySelectorProps) {
-  if (qualities.length === 0) {
-    return null;
-  }
+const QualitySelector: React.FC<QualitySelectorProps> = ({ qualities, selectedQuality, onQualitySelect }) => {
+  // Ordenamos las calidades de mejor a peor para mostrarlas en la UI
+  const sortedQualities = [...qualities].sort((a, b) => {
+    const aNum = parseInt(a.replace('p', ''));
+    const bNum = parseInt(b.replace('p', ''));
+    return bNum - aNum;
+  });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Selecciona la calidad</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollView}>
-        <View style={styles.qualityList}>
-          {qualities.map((quality) => (
-            <TouchableOpacity
-              key={quality}
+      <View style={styles.titleContainer}>
+        <ArrowDownToLine size={18} color="#666" />
+        <Text style={styles.title}>Elige una calidad</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {sortedQualities.map((quality) => (
+          <TouchableOpacity
+            key={quality}
+            style={[
+              styles.qualityButton,
+              selectedQuality === quality && styles.selectedQualityButton,
+            ]}
+            onPress={() => onQualitySelect(quality)}
+          >
+            <Text
               style={[
-                styles.qualityButton,
-                selectedQuality === quality && styles.selectedQualityButton,
+                styles.qualityText,
+                selectedQuality === quality && styles.selectedQualityText,
               ]}
-              onPress={() => onQualitySelect(quality)}
             >
-              <Text
-                style={[
-                  styles.qualityText,
-                  selectedQuality === quality && styles.selectedQualityText,
-                ]}
-              >
-                {quality}
-              </Text>
-              {selectedQuality === quality && (
-                <Check size={16} color="white" />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+              {quality}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 20,
-    marginVertical: 16,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
+    color: '#333',
   },
-  scrollView: {
-    marginHorizontal: -4,
-  },
-  qualityList: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 4,
+  scrollContent: {
+    gap: 12,
+    paddingRight: 20,
   },
   qualityButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#EFEFEF',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     borderWidth: 2,
     borderColor: 'transparent',
   },
   selectedQualityButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#E0F0FF',
     borderColor: '#007AFF',
   },
   qualityText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: '600',
+    color: '#333',
   },
   selectedQualityText: {
-    color: 'white',
+    color: '#007AFF',
   },
 });
+
+export default QualitySelector;
