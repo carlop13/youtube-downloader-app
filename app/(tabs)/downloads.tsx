@@ -1,8 +1,10 @@
-import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library'; // Importamos MediaLibrary para borrar
+import { useFocusEffect } from 'expo-router'; // ¡Importamos el hook mágico!
+import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import { File, FolderOpen, RefreshCw, Share, Trash2 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { File, FolderOpen, Share, Trash2 } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DownloadService, DownloadedFile } from 'services/DownloadService';
 
@@ -13,13 +15,15 @@ export default function DownloadsScreen() {
   const insets = useSafeAreaInsets();
 
   const loadFiles = useCallback(async () => {
+    // No establecemos isLoading a true aquí, para una recarga más suave en focus
     try {
       const files = await DownloadService.getDownloadedFiles();
       setDownloadedFiles(files);
     } catch (error) {
       console.error('Error al cargar archivos:', error);
+      Alert.alert('Error', 'No se pudieron cargar los archivos descargados.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Solo se establece en false al final
     }
   }, []);
 
@@ -29,22 +33,28 @@ export default function DownloadsScreen() {
     setRefreshing(false);
   }, [loadFiles]);
 
-  useEffect(() => {
-    loadFiles();
-  }, [loadFiles]);
+  // --- ¡ESTA ES LA MEJORA CLAVE! ---
+  // useFocusEffect se ejecuta CADA VEZ que esta pantalla aparece.
+  // Esto asegura que la lista siempre esté actualizada después de una nueva descarga.
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true); // Mostramos el indicador de carga al entrar
+      loadFiles();
+    }, [loadFiles])
+  );
 
   const handleShare = async (file: DownloadedFile) => {
     try {
-      await DownloadService.shareFile(file.uri);
+      await Sharing.shareAsync(file.uri);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo compartir el archivo');
+      Alert.alert('Error', 'No se pudo compartir el archivo.');
     }
   };
 
   const handleDelete = (file: DownloadedFile) => {
     Alert.alert(
       'Eliminar archivo',
-      `¿Estás seguro de que quieres eliminar "${file.name}"?`,
+      `¿Estás seguro de que quieres eliminar "${file.filename}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -52,12 +62,19 @@ export default function DownloadsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (Platform.OS !== 'web') {
-                await FileSystem.deleteAsync(file.uri);
-                await loadFiles();
+              // --- CORRECCIÓN LÓGICA DE BORRADO ---
+              // Usamos MediaLibrary.deleteAssetsAsync con el ID del asset
+              const result = await MediaLibrary.deleteAssetsAsync([file.id]);
+              if (result) {
+                Alert.alert('Éxito', `"${file.filename}" ha sido eliminado.`);
+                // Recargamos la lista para reflejar el cambio
+                await loadFiles(); 
+              } else {
+                 Alert.alert('Error', 'El archivo no pudo ser eliminado.');
               }
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar el archivo');
+              console.error("Error al eliminar:", error);
+              Alert.alert('Error', 'Ocurrió un error al intentar eliminar el archivo.');
             }
           },
         },
@@ -66,7 +83,7 @@ export default function DownloadsScreen() {
   };
 
   const formatFileSize = (bytes?: number): string => {
-    if (!bytes || bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return 'Tamaño desc.';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -74,84 +91,61 @@ export default function DownloadsScreen() {
   };
 
   const formatDate = (timestamp?: number): string => {
-    if (!timestamp) return 'Fecha desconocida';
-    return new Date(timestamp * 1000).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    if (!timestamp) return 'Fecha desc.';
+    return new Date(timestamp).toLocaleDateString('es-ES', {
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
-
-  if (Platform.OS === 'web') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <FolderOpen size={32} color="#007AFF" />
-            <Text style={styles.headerTitle}>Mis Descargas</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>
-            En web, los archivos se descargan automáticamente
-          </Text>
-        </View>
-        
-        <View style={styles.webNotice}>
-          <File size={48} color="#ccc" />
-          <Text style={styles.webNoticeTitle}>Descargas Automáticas</Text>
-          <Text style={styles.webNoticeText}>
-            En la versión web, los videos se descargan directamente a tu carpeta de descargas del navegador.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : 10 }]}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top : 20 }]}>
         <View style={styles.headerContent}>
           <FolderOpen size={32} color="#007AFF" />
           <Text style={styles.headerTitle}>Mis Descargas</Text>
         </View>
         <Text style={styles.headerSubtitle}>
-          {downloadedFiles.length} archivo{downloadedFiles.length !== 1 ? 's' : ''} descargado{downloadedFiles.length !== 1 ? 's' : ''}
+          {downloadedFiles.length} video{downloadedFiles.length !== 1 ? 's' : ''} en tu dispositivo
         </Text>
       </View>
 
       <ScrollView 
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={['#007AFF']} 
+            tintColor={'#007AFF'} 
+          />
         }
       >
         {isLoading ? (
           <View style={styles.emptyState}>
-            <RefreshCw size={48} color="#ccc" />
-            <Text style={styles.emptyStateText}>Cargando archivos...</Text>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.emptyStateText}>Buscando tus videos...</Text>
           </View>
         ) : downloadedFiles.length === 0 ? (
           <View style={styles.emptyState}>
             <FolderOpen size={48} color="#ccc" />
             <Text style={styles.emptyStateTitle}>No hay descargas</Text>
             <Text style={styles.emptyStateText}>
-              Los videos que descargues aparecerán aquí
+              Los videos que descargues aparecerán aquí.
             </Text>
           </View>
         ) : (
-          downloadedFiles.map((file, index) => (
-            <View key={index} style={styles.fileCard}>
+          downloadedFiles.map((file) => (
+            <View key={file.id} style={styles.fileCard}>
               <View style={styles.fileIcon}>
                 <File size={24} color="#007AFF" />
               </View>
               
               <View style={styles.fileInfo}>
                 <Text style={styles.fileName} numberOfLines={2}>
-                  {file.name}
+                  {file.filename}
                 </Text>
                 <Text style={styles.fileDetails}>
                   {formatFileSize(file.size)} • {formatDate(file.modificationTime)}
@@ -159,15 +153,11 @@ export default function DownloadsScreen() {
               </View>
 
               <View style={styles.fileActions}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleShare(file)}
-                >
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleShare(file)}>
                   <Share size={20} color="#007AFF" />
                 </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.deleteButton]}
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.deleteButton]} 
                   onPress={() => handleDelete(file)}
                 >
                   <Trash2 size={20} color="#FF3B30" />
@@ -181,17 +171,19 @@ export default function DownloadsScreen() {
   );
 }
 
+// ... (El resto de tus estilos pueden quedar igual)
 const styles = StyleSheet.create({
-  container: {
+    container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
   header: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     paddingTop: 10,
     backgroundColor: 'white',
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -226,7 +218,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
     gap: 16,
   },
   emptyStateTitle: {
@@ -239,24 +231,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     maxWidth: 280,
-  },
-  webNotice: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    gap: 16,
-  },
-  webNoticeTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  webNoticeText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
   },
   fileCard: {
     backgroundColor: 'white',

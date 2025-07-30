@@ -30,13 +30,13 @@ interface ApiInfo {
 
 // --- CONFIGURACIÓN DE CLAVES DE API ---
 const RAPIDAPI_KEYS: string[] = [
-  "07b50fa5acmsha0d4c8ee6111aa4p186610jsnb231ff9a5ac7",
-  "c723d030aamshbfa77f58f63d24ep1a3e87jsn73d6859b7732",
   "54dc0bede2msh5f9afe6a4a0d6c9p192b75jsn96e77dd7daf2",
   "d066f3c628msh89d0a8dfc291442p179cddjsnff49af9598f0",
   "69069d4fd3msh4cf4c4f456c02f9p17f158jsndb31848c91a3",
   "e56c8765ddmsh378be11fb068007p1b1f58jsn77cb05001ffe",
   "c45f0c4d42msh723620516944473p106dd5jsn45346e5c6f2a",
+  "07b50fa5acmsha0d4c8ee6111aa4p186610jsnb231ff9a5ac7",
+  "c723d030aamshbfa77f58f63d24ep1a3e87jsn73d6859b7732",
 ];
 
 // --- FUNCIONES AUXILIARES ---
