@@ -51,7 +51,9 @@ export default function HomeScreen() {
     }
   };
 
-  const handleDownload = async () => {
+  // En app/(tabs)/index.tsx
+
+const handleDownload = async () => {
     if (!videoDetails || !selectedQuality) return;
 
     setIsDownloading(true);
@@ -60,36 +62,31 @@ export default function HomeScreen() {
     const filename = `${videoDetails.title.replace(/[^a-z0-9_.-]/gi, '-')}-${selectedQuality.quality}.mp4`;
 
     try {
-      const { downloadResumable, fileUri } = await DownloadService.startDownload(
+      // Llamamos a la nueva función unificada, que se encarga de todo.
+      const { downloadResumable } = await DownloadService.downloadAndSave(
         selectedQuality.url,
         filename,
         (progress: DownloadProgress) => {
           setDownloadProgress(progress.progress * 100);
         }
       );
-
+      
       downloadResumableRef.current = downloadResumable;
 
-      if (fileUri) {
-        await DownloadService.saveToGallery(fileUri, filename);
-        // No mostramos alerta aquí, la notificación en segundo plano se encargará.
-      } else if (downloadResumableRef.current?.__SAFEv2_shouldCancel) {
-        // Si fue cancelado, no mostramos error.
-        console.log("Descarga cancelada por el usuario.");
-      } else {
-        Alert.alert('Error', 'La descarga falló.');
-      }
-
     } catch (error: any) {
+      // Si el error no es por cancelación del usuario, mostramos una alerta.
       if (!error.message.includes('cancel')) {
-        Alert.alert('Error', 'Ocurrió un error durante la descarga.');
+        Alert.alert('Error', error.message || 'Ocurrió un error durante la descarga.');
       }
     } finally {
       setIsDownloading(false);
-      setDownloadProgress(100); // Marcamos 100% al finalizar o cancelar.
+      // Solo marcamos 100% si no fue cancelado y no hubo error.
+      if(!downloadResumableRef.current?.__SAFEv2_shouldCancel) {
+          setDownloadProgress(100);
+      }
       downloadResumableRef.current = null;
     }
-  };
+};
   
   const handleCancelDownload = async () => {
     if (downloadResumableRef.current) {

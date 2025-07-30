@@ -15,9 +15,9 @@ export interface DownloadedFile {
   id: string; // ID del asset en la MediaLibrary
   filename: string;
   uri: string;
-  size?: number;
-  duration?: number;
-  modificationTime?: number;
+  size: number; // El tamaño real en bytes
+  duration: number;
+  modificationTime: number;
   exists: boolean;
 }
 
@@ -38,30 +38,46 @@ export type DownloadResumable = FileSystem.DownloadResumable;
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
-    shouldPlaySound: true,
+    shouldPlaySound: true, // Permitimos el sonido, pero lo controlaremos por notificación
     shouldSetBadge: false,
   }),
 });
 
-async function registerForPushNotificationsAsync() {
+/**
+ * Configura los canales de notificación para Android.
+ * Uno para notificaciones silenciosas (progreso) y otro para notificaciones con sonido (finalización).
+ */
+async function setupNotificationChannels() {
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+    // Canal para notificaciones importantes (con sonido)
+    await Notifications.setNotificationChannelAsync('default-channel', {
+      name: 'Descargas Completadas',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
+    });
+    // Canal para actualizaciones de progreso (SILENCIOSO)
+    await Notifications.setNotificationChannelAsync('download-progress-channel', {
+      name: 'Progreso de Descarga',
+      importance: Notifications.AndroidImportance.DEFAULT, // Importancia baja para que no sea intrusivo
+      sound: true,
+      vibrationPattern: [], // Sin vibración
     });
   }
+}
 
+/**
+ * Pide permisos para enviar notificaciones y configura los canales.
+ */
+async function registerForPushNotificationsAsync() {
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') {
     const { status: newStatus } = await Notifications.requestPermissionsAsync();
     if (newStatus !== 'granted') {
       alert('Necesitamos permisos para mostrar notificaciones de descarga.');
-      return false;
+      return;
     }
   }
-  return true;
+  await setupNotificationChannels();
 }
 registerForPushNotificationsAsync();
 
@@ -69,12 +85,8 @@ registerForPushNotificationsAsync();
 // --- LÓGICA DEL SERVICIO ---
 // =================================================================
 
-// Usaremos el directorio de documentos para descargas temporales, es más estable.
-const tempDownloadDir = FileSystem.documentDirectory + 'downloads/';
+const tempDownloadDir = FileSystem.cacheDirectory + 'downloads/';
 
-/**
- * Asegura que el directorio de descargas exista antes de usarlo.
- */
 async function ensureDirExists() {
   const dirInfo = await FileSystem.getInfoAsync(tempDownloadDir);
   if (!dirInfo.exists) {
@@ -82,108 +94,125 @@ async function ensureDirExists() {
   }
 }
 
-/**
- * Pide permisos para acceder a la galería/mediateca.
- */
 async function getMediaLibraryPermissions() {
   const { status } = await MediaLibrary.requestPermissionsAsync();
   if (status !== 'granted') {
-    alert('Lo sentimos, necesitamos permisos para guardar el video en tus archivos.');
+    alert('Lo sentimos, necesitamos permisos para guardar y ver tus videos.');
     return false;
   }
   return true;
 }
 
 /**
- * Inicia una descarga y devuelve el objeto para poder cancelarla.
+ * Función UNIFICADA para descargar un archivo. Devuelve el objeto para poder cancelarla.
  */
-async function startDownload(
+async function downloadAndSave(
   url: string, 
   filename: string, 
   onProgress: (progress: DownloadProgress) => void
-): Promise<DownloadResumable> {
-  await ensureDirExists();
-  const fileUri = tempDownloadDir + filename;
+): Promise<{ downloadResumable: DownloadResumable; fileUri: string | null }> {
 
-  // Notificación de inicio (opcional, para feedback inmediato)
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'download-progress',
-    content: {
-      title: 'Iniciando descarga...',
-      body: filename,
-    },
-    trigger: null,
-  });
-
-  const callback = (p: FileSystem.DownloadProgressData) => {
-    const progress = p.totalBytesWritten / p.totalBytesExpectedToWrite;
-    onProgress({ ...p, progress });
-    // Actualiza la notificación en segundo plano
-    Notifications.scheduleNotificationAsync({
-        identifier: 'download-progress',
-        content: {
-            title: 'Descargando...',
-            body: `${filename}`,
-            subtitle: `${(progress * 100).toFixed(0)}% completado`,
-        },
-        trigger: null,
-    });
-  };
-  
-  return FileSystem.createDownloadResumable(url, fileUri, {}, callback);
-};
-
-/**
- * Guarda el archivo descargado en la galería pública, en un álbum específico.
- */
-async function saveToGallery(fileUri: string, filename: string): Promise<void> {
   const hasPermissions = await getMediaLibraryPermissions();
   if (!hasPermissions) {
     throw new Error('Permisos de la galería denegados.');
   }
 
-  try {
-    console.log(`Intentando crear asset desde la URI temporal: ${fileUri}`);
-    const asset = await MediaLibrary.createAssetAsync(fileUri);
+  const tempFileUri = FileSystem.cacheDirectory + filename;
+  const notificationId = 'download-progress';
+  let lastNotifiedProgress = -1;
 
-    console.log(`Asset creado con ID: ${asset.id}. Moviendo al álbum 'Snapcodrilo'...`);
-    const album = await MediaLibrary.getAlbumAsync('Snapcodrilo');
-    if (album == null) {
-      await MediaLibrary.createAlbumAsync('Snapcodrilo', asset, false);
-    } else {
-      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+  const downloadResumable = FileSystem.createDownloadResumable(
+    url,
+    tempFileUri,
+    {},
+    (p: FileSystem.DownloadProgressData) => {
+      const progress = p.totalBytesWritten / p.totalBytesExpectedToWrite;
+      onProgress({ ...p, progress });
+      const currentProgress = Math.floor(progress * 100);
+
+      // Solo actualizamos la notificación si el porcentaje ha cambiado para evitar spam
+      if (currentProgress > lastNotifiedProgress) {
+        lastNotifiedProgress = currentProgress;
+        Notifications.scheduleNotificationAsync({
+          identifier: notificationId, // Usamos el mismo ID para reemplazar la anterior
+          content: {
+            title: `Descargando: ${filename}`,
+            body: `${currentProgress}% completado`,
+            sound: false, // Forzamos a que no tenga sonido en iOS
+            vibrate: [], // Forzamos a que no vibre
+            autoDismiss: false, // La notificación no se irá sola
+            sticky: true, // En Android, hace que sea más difícil de descartar
+          },
+          trigger: { 
+            channelId: 'download-progress-channel', // Le decimos a Android que use el canal silencioso
+          },
+        });
+      }
     }
+  );
+
+  try {
+    const result = await downloadResumable.downloadAsync();
     
-    console.log('Video guardado exitosamente en la galería!');
-    
-    // Limpiamos el archivo temporal después de una copia exitosa
-    await FileSystem.deleteAsync(fileUri, { idempotent: true });
-    
-    // Notificación de éxito
-    await Notifications.cancelScheduledNotificationAsync('download-progress'); // Cancela la de progreso
-    await Notifications.scheduleNotificationAsync({
-        content: {
-            title: '¡Descarga Completada!',
-            body: `"${filename}" se ha guardado en tu galería.`,
-        },
-        trigger: { seconds: 1 },
-    });
+    if (result) {
+      const asset = await MediaLibrary.createAssetAsync(result.uri);
+      const album = await MediaLibrary.getAlbumAsync('Snapcodrilo');
+      if (album == null) {
+        await MediaLibrary.createAlbumAsync('Snapcodrilo', asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      }
+      
+      console.log('Video guardado en la galería!');
+      await FileSystem.deleteAsync(result.uri, { idempotent: true });
+      
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      await Notifications.scheduleNotificationAsync({
+          content: { 
+            title: '¡Descarga Completada!', 
+            body: `"${filename}" se ha guardado.`,
+            sound: true, // Esta sí tiene sonido
+          },
+          trigger: { 
+            channelId: 'default-channel', // Usa el canal por defecto (con sonido)
+            seconds: 1 
+          },
+      });
+
+      return { downloadResumable, fileUri: result.uri };
+    }
   } catch (e: any) {
-    console.error('Error detallado al guardar en la galería:', e);
-    // Este throw enviará el error de vuelta a la pantalla para que pueda ser mostrado en una alerta.
-    throw new Error(`No se pudo guardar el video en la galería. Causa: ${e.message}`);
+    console.error('Error durante la descarga o guardado:', e);
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await Notifications.scheduleNotificationAsync({
+        content: { title: 'Error en la Descarga', body: `No se pudo descargar "${filename}".`, sound: true },
+        trigger: { channelId: 'default-channel', seconds: 1 },
+    });
+    throw new Error(`La descarga falló: ${e.message}`);
   }
-}
+  
+  return { downloadResumable, fileUri: null };
+};
 
 /**
  * Abre el diálogo nativo para compartir un archivo.
  */
-async function shareFile(fileUri: string): Promise<void> {
-    if (!(await Sharing.isAvailableAsync())) {
-      alert('La funcionalidad de compartir no está disponible en este dispositivo.');
+async function shareFile(file: DownloadedFile): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) {
+    alert('La funcionalidad de compartir no está disponible en este dispositivo.');
+    return;
+  }
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(file.uri);
+    if (!fileInfo.exists) {
+      alert("El archivo ya no existe. Por favor, refresca la lista de descargas.");
       return;
     }
-    await Sharing.shareAsync(fileUri);
+    await Sharing.shareAsync(file.uri);
+  } catch (error: any) {
+    console.error("Error al compartir el archivo:", error);
+    alert(`No se pudo compartir el archivo. Error: ${error.message}`);
+  }
 };
 
 /**
@@ -194,33 +223,35 @@ async function getDownloadedFiles(): Promise<DownloadedFile[]> {
     if (!hasPermissions) return [];
 
     const album = await MediaLibrary.getAlbumAsync('Snapcodrilo');
-    if (!album) {
-      console.log("El álbum 'Snapcodrilo' no existe, no hay archivos para mostrar.");
-      return [];
-    }
+    if (!album) return [];
 
-    const assets = await MediaLibrary.getAssetsAsync({
+    const { assets } = await MediaLibrary.getAssetsAsync({
         album: album,
         sortBy: [MediaLibrary.SortBy.creationTime],
         mediaType: [MediaLibrary.MediaType.video],
-        first: 100, // Obtiene los últimos 100 videos del álbum
+        first: 100,
     });
 
-    return assets.assets.map(asset => ({
-        id: asset.id,
-        filename: asset.filename,
-        uri: asset.uri,
-        size: asset.width * asset.height, // Esto es una estimación, MediaLibrary no provee el tamaño en bytes
-        modificationTime: asset.modificationTime,
-        exists: true,
-        duration: asset.duration,
-    }));
+    const fileDetails = await Promise.all(
+      assets.map(async (asset) => {
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        return {
+            id: asset.id,
+            filename: asset.filename,
+            uri: asset.uri,
+            size: fileInfo.exists ? fileInfo.size : 0,
+            modificationTime: asset.modificationTime,
+            exists: fileInfo.exists,
+            duration: asset.duration,
+        };
+      })
+    );
+    return fileDetails;
 }
 
-// Exportamos un objeto único 'DownloadService' que contiene todas nuestras funciones.
+// Exportamos un objeto único con nuestras funciones.
 export const DownloadService = {
-  startDownload,
-  saveToGallery,
+  downloadAndSave,
   shareFile,
   getDownloadedFiles,
 };
