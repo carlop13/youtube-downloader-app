@@ -229,7 +229,7 @@ async function getDownloadedFiles(): Promise<DownloadedFile[]> {
         album: album,
         sortBy: [MediaLibrary.SortBy.creationTime],
         mediaType: [MediaLibrary.MediaType.video],
-        first: 100,
+        first: album.assetCount, 
     });
 
     const fileDetails = await Promise.all(
@@ -249,9 +249,23 @@ async function getDownloadedFiles(): Promise<DownloadedFile[]> {
     return fileDetails;
 }
 
+/**
+ * Limpia un string para que sea un nombre de archivo válido y legible.
+ * Reemplaza caracteres ilegales por guiones y colapsa espacios múltiples.
+ * @param title El título original del video.
+ * @returns Un string seguro para usar como nombre de archivo.
+ */
+function sanitizeFilename(title: string): string {
+  // Reemplaza los caracteres ilegales en nombres de archivo (\ / : * ? " < > |) con un espacio
+  const sanitized = title.replace(/[\\/:*?"<>|]/g, ' ');
+  // Colapsa múltiples espacios o guiones en uno solo y recorta los extremos
+  return sanitized.replace(/\s+/g, ' ').trim();
+}
+
 // Exportamos un objeto único con nuestras funciones.
 export const DownloadService = {
   downloadAndSave,
   shareFile,
   getDownloadedFiles,
+  sanitizeFilename,
 };

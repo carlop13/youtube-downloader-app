@@ -22,7 +22,7 @@ export default function SettingsScreen() {
   const showAbout = () => {
     Alert.alert(
       'Acerca de YouTube Downloader',
-      'Esta aplicación te permite descargar videos de YouTube en diferentes calidades. \n\nDesarrollada por Carlos Guadalupe López Trejo.\n\nVersión: 1.0.0',
+      'Esta aplicación te permite descargar videos de YouTube en diferentes calidades. \n\nDesarrollada por Carlos Guadalupe López Trejo.\n\nVersión: 2.0.0',
       [{ text: 'OK' }]
     );
   };
@@ -144,7 +144,7 @@ export default function SettingsScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            YouTube Downloader v1.0.0
+            YouTube Downloader v2.0.0
           </Text>
           <Text style={styles.footerSubtext}>
             App creada con React Native

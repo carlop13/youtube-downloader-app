@@ -1,26 +1,34 @@
 import { Tabs } from 'expo-router';
 import { Download, FolderOpen, Settings } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from 'react';
+
+// Esta función será nuestro componente de ícono reutilizable
+function TabBarIcon({ name, color }: { name: string; color: string }) {
+  const iconSize = 28;
+  if (name === 'index') {
+    return <Download size={iconSize} color={color} />;
+  } else if (name === 'downloads') {
+    return <FolderOpen size={iconSize} color={color} />;
+  } else if (name === 'settings') {
+    return <Settings size={iconSize} color={color} />;
+  }
+  return null;
+}
 
 export default function TabLayout() {
-  // 1. Obtenemos los márgenes seguros del dispositivo
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
+        // --- ¡ESTE ES EL CAMBIO CLAVE! ---
+        // Eliminamos height, paddingTop y paddingBottom.
+        // Dejamos que Expo maneje la altura y los márgenes automáticamente.
         tabBarStyle: {
           backgroundColor: 'white',
           borderTopWidth: 0,
-          // 2. Calculamos la altura dinámicamente
-          // Altura base de 60 + el margen inferior del sistema (ej. la barra de gestos de iPhone)
-          height: 60 + insets.bottom, 
-          // 3. El padding inferior ahora es solo el margen del sistema
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
+          // Podemos mantener las sombras si nos gustan
           shadowColor: '#000',
           shadowOffset: {
             width: 0,
@@ -33,34 +41,30 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: -5, // Ajuste fino para acercar el texto al ícono
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Descargar',
-          tabBarIcon: ({ size, color }) => (
-            <Download size={size} color={color} />
-          ),
+          // Usamos la propiedad 'tabBarIcon' para pasar nuestro componente personalizado
+          tabBarIcon: ({ color }) => <TabBarIcon name="index" color={color} />,
         }}
       />
       <Tabs.Screen
         name="downloads"
         options={{
           title: 'Mis Descargas',
-          tabBarIcon: ({ size, color }) => (
-            <FolderOpen size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <TabBarIcon name="downloads" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Configuración',
-          tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings" color={color} />,
         }}
       />
     </Tabs>

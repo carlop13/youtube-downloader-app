@@ -30,13 +30,21 @@ interface ApiInfo {
 
 // --- CONFIGURACIÓN DE CLAVES DE API ---
 const RAPIDAPI_KEYS: string[] = [
+  "07b50fa5acmsha0d4c8ee6111aa4p186610jsnb231ff9a5ac7",
+  "c723d030aamshbfa77f58f63d24ep1a3e87jsn73d6859b7732",
   "54dc0bede2msh5f9afe6a4a0d6c9p192b75jsn96e77dd7daf2",
   "d066f3c628msh89d0a8dfc291442p179cddjsnff49af9598f0",
   "69069d4fd3msh4cf4c4f456c02f9p17f158jsndb31848c91a3",
   "e56c8765ddmsh378be11fb068007p1b1f58jsn77cb05001ffe",
   "c45f0c4d42msh723620516944473p106dd5jsn45346e5c6f2a",
-  "07b50fa5acmsha0d4c8ee6111aa4p186610jsnb231ff9a5ac7",
-  "c723d030aamshbfa77f58f63d24ep1a3e87jsn73d6859b7732",
+  "c83fab3a8dmsh66aea5f06ea8b8fp19d3fejsnb146caf3a749",
+  "f6a31db122msha8442cf9d4a4dffp1c1af6jsne1763d05fdc3",
+  "33cd7f062amshcff9999782010bbp11ed43jsn371c8d63e2ea",
+  "c2caa7718bmsh75c9fc20d330749p1763f5jsn2d28cc866a48",
+  "61b821d772msh39a3460a4ad2492p12d722jsnf09fe1c17951",
+  "f9521ee380msh533ccaafc4f33e1p16011ajsnd7e2238a180d",
+  "21f7b742c1msh1f78a1fa6e81691p1c4a8ejsn1221f870c4db",
+  "da907ae97fmsh1638fa3c363ea40p1e322fjsn2af60872d2d6",
 ];
 
 // --- FUNCIONES AUXILIARES ---
