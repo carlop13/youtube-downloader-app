@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Tus componentes y servicios (las rutas relativas son más seguras si los alias fallan)
+// Tus componentes y servicios
 import QualitySelector from '@/../components/QualitySelector';
 import SearchInput from '@/../components/SearchInput';
 import VideoCard from '@/../components/VideoCard';
@@ -14,7 +14,6 @@ import { getVideoDetails, VideoDetails, VideoQuality } from '@/../services/Youtu
 export default function HomeScreen() {
   const [url, setUrl] = useState('');
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
-  // Guardamos el objeto de calidad completo, no solo el string.
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
   
   const [isSearching, setIsSearching] = useState(false);
@@ -22,7 +21,7 @@ export default function HomeScreen() {
   const [downloadProgress, setDownloadProgress] = useState(0);
 
   const downloadResumableRef = useRef<DownloadResumable | null>(null);
-  const insets = useSafeAreaInsets(); // Hook para obtener los márgenes seguros
+  const insets = useSafeAreaInsets();
 
   const handleSearch = async () => {
     if (!url.trim()) return;
@@ -33,13 +32,10 @@ export default function HomeScreen() {
     setDownloadProgress(0);
 
     try {
-      // Hacemos una sola petición que nos trae toda la información del video
       const result = await getVideoDetails(url);
       
-      // CORRECCIÓN LÓGICA: Ahora guardamos los detalles en el estado para que se renderice.
       if (result && result.qualities.length > 0) {
         setVideoDetails(result);
-        // Seleccionamos la mejor calidad disponible (la primera de la lista) por defecto.
         setSelectedQuality(result.qualities[0]);
       } else {
         Alert.alert('Error', 'No se pudo obtener la información del video. Verifica la URL o que el video no tenga restricciones.');
@@ -51,18 +47,19 @@ export default function HomeScreen() {
     }
   };
 
-  // En app/(tabs)/index.tsx
-
-const handleDownload = async () => {
+  const handleDownload = async () => {
     if (!videoDetails || !selectedQuality) return;
 
     setIsDownloading(true);
     setDownloadProgress(0);
 
-    const filename = `${videoDetails.title.replace(/[^a-z0-9_.-]/gi, '-')}-${selectedQuality.quality}.mp4`;
+    // --- ¡ESTE ES EL ÚNICO CAMBIO! ---
+    // Usamos la nueva función 'sanitizeFilename' del servicio para crear un nombre limpio.
+    const cleanTitle = DownloadService.sanitizeFilename(videoDetails.title);
+    const filename = `${cleanTitle} - ${selectedQuality.quality}.mp4`;
+    // ------------------------------------
 
     try {
-      // Llamamos a la nueva función unificada, que se encarga de todo.
       const { downloadResumable } = await DownloadService.downloadAndSave(
         selectedQuality.url,
         filename,
@@ -74,25 +71,22 @@ const handleDownload = async () => {
       downloadResumableRef.current = downloadResumable;
 
     } catch (error: any) {
-      // Si el error no es por cancelación del usuario, mostramos una alerta.
       if (!error.message.includes('cancel')) {
         Alert.alert('Error', error.message || 'Ocurrió un error durante la descarga.');
       }
     } finally {
       setIsDownloading(false);
-      // Solo marcamos 100% si no fue cancelado y no hubo error.
       if(!downloadResumableRef.current?.__SAFEv2_shouldCancel) {
           setDownloadProgress(100);
       }
       downloadResumableRef.current = null;
     }
-};
+  };
   
   const handleCancelDownload = async () => {
     if (downloadResumableRef.current) {
       console.log("Cancelando descarga...");
       await downloadResumableRef.current.cancelAsync();
-      // El bloque finally de handleDownload se encargará del resto.
     }
   };
 
@@ -105,11 +99,10 @@ const handleDownload = async () => {
   };
 
   return (
-    // SafeAreaView gestiona automáticamente los márgenes superior e inferior
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : 10 }]}>
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 10 : insets.top }]}>
         <View style={styles.headerContent}>
           <Youtube size={32} color="#FF0000" />
           <Text style={styles.headerTitle}>Snapcodrilo</Text>
@@ -129,7 +122,7 @@ const handleDownload = async () => {
 
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }} // Margen inferior dinámico
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
         {isSearching && (
@@ -150,16 +143,16 @@ const handleDownload = async () => {
               }}
             />
             <VideoCard
-  video={{
-    title: videoDetails.title,
-    thumbnail: videoDetails.thumbnail,
-  }}
-  selectedQuality={selectedQuality?.quality || null} // Pasamos solo el string de calidad
-  onDownload={handleDownload}
-  onCancel={handleCancelDownload}
-  isDownloading={isDownloading}
-  downloadProgress={downloadProgress}
-/>
+              video={{
+                title: videoDetails.title,
+                thumbnail: videoDetails.thumbnail,
+              }}
+              selectedQuality={selectedQuality?.quality || null}
+              onDownload={handleDownload}
+              onCancel={handleCancelDownload}
+              isDownloading={isDownloading}
+              downloadProgress={downloadProgress}
+            />
             <View style={styles.resetContainer}>
               <TouchableOpacity onPress={resetSearch} disabled={isDownloading}>
                 <Text style={[styles.resetText, isDownloading && styles.disabledText]}>
@@ -175,7 +168,7 @@ const handleDownload = async () => {
 }
 
 const styles = StyleSheet.create({
-  container: {
+    container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
   },

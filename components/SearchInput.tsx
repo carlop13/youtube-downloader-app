@@ -18,7 +18,7 @@ export default function SearchInput({
   onSearch, 
   isLoading = false, 
   disabled = false,
-  placeholder = "Pega aquí la URL de YouTube" 
+  placeholder = "Pega aquí la URL" 
 }: SearchInputProps) {
   
   const [isFocused, setIsFocused] = useState(false);
@@ -48,13 +48,13 @@ export default function SearchInput({
         isFocused && styles.inputContainerFocused,
         (isLoading || disabled) && styles.disabled
       ]}>
-        <Search size={20} color="#666" style={styles.searchIcon} />
+        <Search size={22} color="#444343ff" style={styles.searchIcon} />
         <TextInput
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#999"
+          placeholderTextColor="#444343ff"
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onSubmitEditing={onSearch} // Buscar con "Enter"
@@ -65,7 +65,7 @@ export default function SearchInput({
         />
         
         <TouchableOpacity style={styles.pasteButton} onPress={handlePaste} disabled={isLoading || disabled}>
-          <ClipboardPaste size={20} color="#007AFF" />
+          <ClipboardPaste size={27} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   searchButtonDisabled: {
-    backgroundColor: '#BDBDBD',
+    backgroundColor: '#a3a3a3ff',
     shadowOpacity: 0,
     elevation: 0,
   },

@@ -37,6 +37,14 @@ const RAPIDAPI_KEYS: string[] = [
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx",
 ];
 
 // --- FUNCIONES AUXILIARES ---
