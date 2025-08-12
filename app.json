@@ -7,12 +7,14 @@
     "icon": "./assets/images/logo.png",
     "scheme": "youtubedownloaderapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-       "infoPlist": {
+      "bundleIdentifier": "com.snapcodrilo.youtubedownloader",
+      "infoPlist": {
         "NSMicrophoneUsageDescription": "Esta app necesita acceso al micrófono para la búsqueda por voz.",
-        "NSSpeechRecognitionUsageDescription": "Esta app necesita acceso al reconocimiento de voz para transcribir tus búsquedas."
+        "NSSpeechRecognitionUsageDescription": "Esta app necesita acceso al reconocimiento de voz para transcribir tus búsquedas.",
+        "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para guardar tus videos descargados.",
+        "NSPhotoLibraryAddUsageDescription": "Esta app necesita permiso para añadir videos a tu galería."
       }
     },
     "android": {
@@ -20,12 +22,14 @@
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.calish.youtubedownloaderapp",
       "permissions": [
         "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -38,9 +42,21 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/logo.png",
-          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "13.4"
+          }
         }
       ]
     ],
@@ -48,7 +64,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "1f611cbd-cccf-489b-a339-8278bb237fcc"
       }
