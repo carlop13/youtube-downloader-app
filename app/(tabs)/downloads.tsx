@@ -1,15 +1,14 @@
-import Voice, { SpeechErrorEvent, SpeechResultsEvent } from '@react-native-voice/voice';
-import { ResizeMode, Video } from 'expo-av';
-import * as MediaLibrary from 'expo-media-library';
-import { useFocusEffect } from 'expo-router';
-import * as Sharing from 'expo-sharing';
-import { StatusBar } from 'expo-status-bar';
-import * as VideoThumbnails from 'expo-video-thumbnails';
-import { File, FolderOpen, Mic, PlayCircle, Search, Share, Trash2, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, RefreshControl, SafeAreaView, Image, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { useFocusEffect } from 'expo-router';
+import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
 import { DownloadService, DownloadedFile } from 'services/DownloadService';
+import { FolderOpen, File, Share, Trash2, Search, Mic, X, PlayCircle } from 'lucide-react-native';
 
 // --- COMPONENTE INTERNO PARA LA MINIATURA ---
 const FileThumbnail: React.FC<{ fileUri: string }> = ({ fileUri }) => {
@@ -39,14 +38,14 @@ const FileThumbnail: React.FC<{ fileUri: string }> = ({ fileUri }) => {
   return <Image source={{ uri: thumbnailUri }} style={styles.thumbnail} />;
 };
 
-// --- NUEVO COMPONENTE: REPRODUCTOR DE VIDEO EN MODAL ---
+// --- COMPONENTE REPRODUCTOR DE VIDEO EN MODAL ---
 const VideoPlayerModal: React.FC<{
   visible: boolean;
   file: DownloadedFile | null;
   onClose: () => void;
 }> = ({ visible, file, onClose }) => {
   const videoRef = useRef<Video>(null);
-  const insets = useSafeAreaInsets(); // Usamos insets para el botón de cerrar
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!visible) {
@@ -91,7 +90,6 @@ export default function DownloadsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   
-  const [isListening, setIsListening] = useState(false);
   const [isVideoPlayerVisible, setIsVideoPlayerVisible] = useState(false);
   const [selectedFileToPlay, setSelectedFileToPlay] = useState<DownloadedFile | null>(null);
 
@@ -99,46 +97,6 @@ export default function DownloadsScreen() {
     setSelectedFileToPlay(file);
     setIsVideoPlayerVisible(true);
   };
-
-  useEffect(() => {
-    const onSpeechResults = (e: SpeechResultsEvent) => {
-      if (e.value?.[0]) setSearchQuery(e.value[0]);
-      setIsListening(false);
-    };
-    const onSpeechError = (e: SpeechErrorEvent) => {
-      console.error('onSpeechError: ', e);
-      Alert.alert("Error de Voz", e.error?.message || "No se pudo reconocer el audio.");
-      setIsListening(false);
-    };
-    const onSpeechEnd = () => setIsListening(false);
-
-    Voice.onSpeechResults = onSpeechResults;
-    Voice.onSpeechError = onSpeechError;
-    Voice.onSpeechEnd = onSpeechEnd;
-
-    return () => { Voice.destroy().then(Voice.removeAllListeners); };
-  }, []);
-
-  const startListening = async () => {
-    try {
-      setSearchQuery('');
-      await Voice.start('es-ES');
-      setIsListening(true);
-    } catch (e) {
-      console.error('Error al iniciar la escucha:', e);
-      setIsListening(false);
-    }
-  };
-
-  const stopListening = async () => {
-    try {
-      await Voice.stop();
-    } catch (e) {
-      console.error('Error al detener la escucha:', e);
-    }
-  };
-  
-  const handleVoiceSearch = () => isListening ? stopListening() : startListening();
 
   const loadFiles = useCallback(async () => {
     try {
@@ -165,6 +123,11 @@ export default function DownloadsScreen() {
       file.filename.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allDownloadedFiles, searchQuery]);
+
+  // --- FUNCIÓN DE BÚSQUEDA POR VOZ (PLACEHOLDER) ---
+  const handleVoiceSearch = () => {
+    Alert.alert("Próximamente", "La búsqueda por voz aún no está implementada.");
+  };
 
   const handleShare = async (file: DownloadedFile) => {
     try {
@@ -244,7 +207,7 @@ export default function DownloadsScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={handleVoiceSearch} style={styles.actionIcon}>
-              <Mic size={24} color={isListening ? '#FF3B30' : '#007AFF'} />
+              <Mic size={24} color="#007AFF" />
             </TouchableOpacity>
           )}
         </View>
@@ -279,7 +242,7 @@ export default function DownloadsScreen() {
                 <View style={styles.thumbnailContainer}>
                   <FileThumbnail fileUri={file.uri} />
                   <View style={styles.playIconOverlay}>
-                    <PlayCircle size={24} color="white" fill="rgba(0,0,0,0.5)" />
+                   {/*} <PlayCircle size={24} color="white" fill="rgba(0,0,0,0.5)" /> {*/}
                   </View>
                 </View>
                 <View style={styles.fileInfo}>

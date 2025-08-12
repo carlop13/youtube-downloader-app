@@ -11,9 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.snapcodrilo.youtubedownloader",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Esta app necesita acceso al micrófono para la búsqueda por voz.",
-        "NSSpeechRecognitionUsageDescription": "Esta app necesita acceso al reconocimiento de voz para transcribir tus búsquedas.",
-        "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para guardar tus videos descargados.",
+        "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a tu galería para guardar los videos descargados.",
         "NSPhotoLibraryAddUsageDescription": "Esta app necesita permiso para añadir videos a tu galería."
       }
     },
@@ -24,10 +22,8 @@
       },
       "package": "com.calish.youtubedownloaderapp",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "versionCode": 1
     },
@@ -44,19 +40,6 @@
           "image": "./assets/images/logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0"
-          },
-          "ios": {
-            "deploymentTarget": "15.1"
-          }
         }
       ]
     ],
