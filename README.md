@@ -1,50 +1,74 @@
-# Welcome to your Expo app 👋
+# Snapcodrilo 🐊
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Una aplicación móvil para descargar tus videos favoritos de YouTube, construida con React Native y Expo.
 
-## Get started
+## Acerca del Proyecto
 
-1. Install dependencies
+Snapcodrilo es una aplicación móvil diseñada para buscar, previsualizar y descargar videos de YouTube directamente al almacenamiento del dispositivo. La aplicación se enfoca en una experiencia de usuario limpia y funcional, permitiendo gestionar las descargas en una galería integrada.
 
-   ```bash
-   npm install
-   ```
+La arquitectura utiliza una API externa (RapidAPI) para obtener los enlaces de descarga de forma segura, protegiendo la clave de API y manejando los límites de uso a través de un sistema de rotación de claves.
 
-2. Start the app
+### ✨ Características Principales
 
-   ```bash
-   npx expo start
-   ```
+- **Búsqueda de Videos:** Pega cualquier URL de YouTube (`youtube.com` o `youtu.be`) para obtener la información del video.
+- **Selector de Calidad:** Visualiza las calidades disponibles (1080p, 720p, etc.) y elige la que prefieras para la descarga.
+- **Descarga a la Galería:** Los videos se guardan directamente en la galería de tu teléfono, dentro de un álbum dedicado llamado "Snapcodrilo".
+- **Notificaciones Nativas:** Recibe notificaciones de progreso mientras se descarga un video y una notificación final cuando se completa.
+- **Galería Integrada:**
+  - Visualiza todos tus videos descargados con miniaturas generadas automáticamente.
+  - Busca en tus descargas por nombre.
+  - Comparte los videos con otras aplicaciones.
+  - Elimina los videos para liberar espacio.
+- **Interfaz Adaptable:** Diseñada para funcionar en diferentes tamaños de pantalla, respetando las áreas seguras (notch, isla dinámica, etc.).
+- **Rotación de Claves de API:** Utiliza un sistema de múltiples claves de API para maximizar el uso de los planes gratuitos y asegurar la continuidad del servicio.
 
-In the output, you'll find options to open the app in a
+### 🛠️ Tecnologías Utilizadas
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Framework:** React Native con Expo
+- **Lenguaje:** TypeScript
+- **Navegación:** Expo Router (File-based routing)
+- **API Externa:** RapidAPI (YouTube Media Downloader)
+- **Iconos:** Lucide React Native
+- **Manejo de Archivos y Galería:** `expo-media-library`, `expo-file-system`, `expo-sharing`
+- **Funcionalidades Nativas:** `expo-notifications`, `expo-video-thumbnails`
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 🚀 Cómo Empezar
 
-## Get a fresh project
+Sigue estos pasos para configurar y ejecutar el proyecto en tu entorno de desarrollo.
 
-When you're ready, run:
-
+#### 1. Clonar el repositorio
 ```bash
-npm run reset-project
+git clone https://github.com/carlop13/youtube-downloader-app.git
+cd youtube-downloader-app
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+#### 2. Instalar dependencias
+```bash
+npm install
+```
 
-## Learn more
+#### 3. Crear una Build de Desarrollo
 
-To learn more about developing your project with Expo, look at the following resources:
+Dado que la app utiliza librerías nativas (expo-media-library, etc.), no funcionará correctamente en la app Expo Go. Es necesario crear una build de desarrollo.
+```bash
+# Inicia sesión en tu cuenta de Expo
+eas login
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Construye la app para Android o iOS
+eas build --profile development --platform android
+```
+Sigue las instrucciones para descargar e instalar el APK resultante en tu dispositivo.
 
-## Join the community
+#### 4. Iniciar el servidor de desarrollo
 
-Join our community of developers creating universal apps.
+Una vez instalada la build de desarrollo, inicia el servidor:
+```bash
+npm start
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 📝 Ideas y Mejoras Futuras
+
+- **Implementar búsqueda por voz en la pantalla de descargas.**
+- **Añadir soporte para descargar solo el audio en formato MP3.**
+- **Guardar la calidad de descarga preferida en la configuración (AsyncStorage).**
+- **Permitir al usuario elegir la carpeta de descarga.**
