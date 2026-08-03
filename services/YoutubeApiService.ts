@@ -30,7 +30,7 @@ interface ApiInfo {
 
 // --- CONFIGURACIÓN DE CLAVES DE API ---
 const RAPIDAPI_KEYS: string[] = [
-  "XXXXXXXXXXXXmshbfaXxxxxxxx",
+  "XXXXXXXXXXXXmshbfaXxxxxxxx", // Reemplaza con tus claves reales
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
   "XXXXXXXXXXXXmshbfaXxxxxxxx",
@@ -51,40 +51,50 @@ const RAPIDAPI_KEYS: string[] = [
 function getYouTubeID(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
-    if (urlObj.hostname === 'youtu.be') return urlObj.pathname.split('/')[1];
+    if (urlObj.hostname.includes("youtube.com"))
+      return urlObj.searchParams.get("v");
+    if (urlObj.hostname === "youtu.be") return urlObj.pathname.split("/")[1];
     return null;
   } catch (e) {
     return null;
   }
 }
 
-async function fetchVideoInfo(videoID: string, apiKey: string): Promise<ApiInfo> {
+async function fetchVideoInfo(
+  videoID: string,
+  apiKey: string,
+): Promise<ApiInfo> {
   const options = {
-    method: 'GET',
-    url: 'https://youtube-media-downloader.p.rapidapi.com/v2/video/details',
+    method: "GET",
+    url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
     params: { videoId: videoID },
     headers: {
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com'
-    }
+      "x-rapidapi-key": apiKey,
+      "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com",
+    },
   };
-  const response = await fetch(`${options.url}?${new URLSearchParams(options.params)}`, {
-    method: options.method,
-    headers: options.headers,
-  });
-  if (response.status === 429) throw new Error('Límite de la API key alcanzado.');
-  if (!response.ok) throw new Error(`La API respondió con error: ${response.status}`);
+  const response = await fetch(
+    `${options.url}?${new URLSearchParams(options.params)}`,
+    {
+      method: options.method,
+      headers: options.headers,
+    },
+  );
+  if (response.status === 429)
+    throw new Error("Límite de la API key alcanzado.");
+  if (!response.ok)
+    throw new Error(`La API respondió con error: ${response.status}`);
   return response.json();
 }
-
 
 // --- FUNCIÓN PRINCIPAL EXPORTADA ---
 /**
  * Obtiene los detalles y todos los enlaces de descarga de un video en UNA SOLA PETICIÓN.
  * Rota las claves de API si una falla, hasta agotar todas las opciones.
  */
-export async function getVideoDetails(videoUrl: string): Promise<VideoDetails | null> {
+export async function getVideoDetails(
+  videoUrl: string,
+): Promise<VideoDetails | null> {
   const videoID = getYouTubeID(videoUrl);
   if (!videoID) {
     console.error("URL de YouTube no válida.");
@@ -94,25 +104,34 @@ export async function getVideoDetails(videoUrl: string): Promise<VideoDetails | 
   // Iteramos sobre cada una de nuestras claves de API
   for (const apiKey of RAPIDAPI_KEYS) {
     try {
-      console.log(`Intentando obtener detalles con la clave que termina en: ...${apiKey.slice(-6)}`);
+      console.log(
+        `Intentando obtener detalles con la clave que termina en: ...${apiKey.slice(-6)}`,
+      );
       // Intentamos obtener la información con la clave actual
       const info = await fetchVideoInfo(videoID, apiKey);
 
       // Si la respuesta no tiene el formato esperado, la consideramos un fallo y probamos la siguiente clave.
       if (!info?.videos?.items) {
-          console.warn("Respuesta de API inesperada. Intentando con la siguiente clave...");
-          continue; // Pasa a la siguiente iteración del bucle (siguiente clave)
+        console.warn(
+          "Respuesta de API inesperada. Intentando con la siguiente clave...",
+        );
+        continue; // Pasa a la siguiente iteración del bucle (siguiente clave)
       }
-      
+
       // Filtramos solo los formatos MP4 que tienen audio y una URL válida
       const combinedFormats = info.videos.items
-        .filter(f => f.hasAudio && f.mimeType.includes('mp4') && f.url)
-        .map(f => ({ quality: f.quality, url: f.url }));
-        
+        .filter((f) => f.hasAudio && f.mimeType.includes("mp4") && f.url)
+        .map((f) => ({ quality: f.quality, url: f.url }));
+
       if (combinedFormats.length > 0) {
-        const thumbnailUrl = info.thumbnails.length > 0 ? info.thumbnails[info.thumbnails.length - 1].url : '';
-        console.log(`¡Éxito! Información encontrada con la clave ...${apiKey.slice(-6)}`);
-        
+        const thumbnailUrl =
+          info.thumbnails.length > 0
+            ? info.thumbnails[info.thumbnails.length - 1].url
+            : "";
+        console.log(
+          `¡Éxito! Información encontrada con la clave ...${apiKey.slice(-6)}`,
+        );
+
         // ¡Éxito! Devolvemos un objeto con toda la información y detenemos el bucle.
         return {
           title: info.title,
@@ -121,8 +140,10 @@ export async function getVideoDetails(videoUrl: string): Promise<VideoDetails | 
         };
       } else {
         // La clave funcionó pero no hay formatos válidos. No tiene caso probar otras claves.
-        console.error("No se encontró ningún formato MP4 con audio para este video.");
-        return null; 
+        console.error(
+          "No se encontró ningún formato MP4 con audio para este video.",
+        );
+        return null;
       }
     } catch (error: any) {
       // Si el error es por límite de peticiones (429) u otro, lo registramos
@@ -132,6 +153,8 @@ export async function getVideoDetails(videoUrl: string): Promise<VideoDetails | 
   }
 
   // Si el bucle 'for' termina sin que hayamos retornado éxito, significa que todas las claves fallaron.
-  console.error("Todas las claves de API han fallado o han alcanzado su límite.");
+  console.error(
+    "Todas las claves de API han fallado o han alcanzado su límite.",
+  );
   return null;
 }
